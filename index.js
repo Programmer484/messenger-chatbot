@@ -1,0 +1,162 @@
+const express = require('express');
+const axios = require('axios');
+require('dotenv').config();
+
+// Environment variable sanity checks
+['VERIFY_TOKEN', 'PAGE_ACCESS_TOKEN', 'OPENAI_API_KEY'].forEach((key) => {
+  if (!process.env[key]) {
+    throw new Error(`${key} is missing. Please set it in your .env file.`);
+  }
+});
+
+const app = express();
+app.use(express.json());
+
+// Environment variables
+const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
+const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
+// OpenAI API configuration
+const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
+const OPENAI_MODEL = 'gpt-4o-mini';
+
+// System prompt for rental screening
+const SYSTEM_PROMPT = `You are a professional rental screening assistant. Your role is to:
+1. Ask relevant questions about rental preferences and requirements
+2. Collect necessary information for rental screening
+3. Provide concise, professional responses
+4. Guide users through the rental screening process
+5. Ask follow-up questions when needed
+6. Summarize collected information periodically
+
+Keep responses brief, professional, and focused on rental screening.`;
+
+// Store conversation context (in production, use a proper database)
+const conversationContext = new Map();
+
+// Helper function to send messages via Messenger API
+async function sendMessage(senderId, message) {
+  try {
+    const response = await axios.post(
+      `https://graph.facebook.com/v18.0/me/messages`,
+      {
+        recipient: { id: senderId },
+        message: { text: message }
+      },
+      {
+        params: { access_token: PAGE_ACCESS_TOKEN },
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+    console.log('Message sent successfully:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error sending message:', error.response?.data || error.message);
+    throw error;
+  }
+}
+
+// Helper function to get ChatGPT response
+async function getChatGPTResponse(senderId, userMessage) {
+  try {
+    // Get or initialize conversation context
+    let messages = conversationContext.get(senderId) || [{ role: 'system', content: SYSTEM_PROMPT }];
+
+    // Add user message to context
+    messages.push({ role: 'user', content: userMessage });
+
+    // Trim context to last 20 messages to avoid token bloat
+    if (messages.length > 20) {
+      messages = [messages[0], ...messages.slice(-19)];
+    }
+
+    const response = await axios.post(
+      OPENAI_API_URL,
+      {
+        model: OPENAI_MODEL,
+        messages: messages,
+        temperature: 0.7,
+        max_tokens: 150
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const assistantMessage = response.data.choices[0].message.content;
+
+    // Update conversation context
+    messages.push({ role: 'assistant', content: assistantMessage });
+    conversationContext.set(senderId, messages);
+
+    return assistantMessage;
+  } catch (error) {
+    console.error('Error getting ChatGPT response:', error.response?.data || error.message);
+    throw error;
+  }
+}
+
+// Webhook verification endpoint
+app.get('/webhook', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+
+  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+    console.log('Webhook verified');
+    res.status(200).send(challenge);
+  } else {
+    console.error('Webhook verification failed');
+    res.sendStatus(403);
+  }
+});
+
+// Webhook message handling endpoint
+app.post('/webhook', async (req, res) => {
+  try {
+    const body = req.body;
+
+    if (body.object !== 'page') {
+      return res.sendStatus(404);
+    }
+
+    // Iterate through all entries and messaging events
+    for (const entry of body.entry) {
+      for (const webhookEvent of entry.messaging) {
+        const senderId = webhookEvent.sender.id;
+        const message = webhookEvent.message?.text;
+
+        // Skip non-text messages
+        if (!message) continue;
+
+        console.log(`Processing message from ${senderId}: ${message}`);
+
+        try {
+          const chatGPTResponse = await getChatGPTResponse(senderId, message);
+          await sendMessage(senderId, chatGPTResponse);
+        } catch (error) {
+          console.error('Error processing message:', error);
+          await sendMessage(senderId, 'I apologize, but I encountered an error processing your message. Please try again later.');
+        }
+      }
+    }
+
+    res.status(200).send('EVENT_RECEIVED');
+  } catch (error) {
+    console.error('Webhook error:', error);
+    res.sendStatus(500);
+  }
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).send('Internal Server Error');
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
