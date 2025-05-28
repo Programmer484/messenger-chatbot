@@ -1,6 +1,5 @@
 const express = require('express');
 const axios = require('axios');
-require('dotenv').config();
 
 // Environment variable sanity checks
 ['VERIFY_TOKEN', 'PAGE_ACCESS_TOKEN', 'OPENAI_API_KEY'].forEach((key) => {
@@ -16,89 +15,6 @@ app.use(express.json());
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-
-// OpenAI API configuration
-const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
-const OPENAI_MODEL = 'gpt-4o-mini';
-
-// System prompt for rental screening
-const SYSTEM_PROMPT = `You are a professional rental screening assistant. Your role is to:
-1. Ask relevant questions about rental preferences and requirements
-2. Collect necessary information for rental screening
-3. Provide concise, professional responses
-4. Guide users through the rental screening process
-5. Ask follow-up questions when needed
-6. Summarize collected information periodically
-
-Keep responses brief, professional, and focused on rental screening.`;
-
-// Store conversation context (in production, use a proper database)
-const conversationContext = new Map();
-
-// Helper function to send messages via Messenger API
-async function sendMessage(senderId, message) {
-  try {
-    const response = await axios.post(
-      `https://graph.facebook.com/v18.0/me/messages`,
-      {
-        recipient: { id: senderId },
-        message: { text: message }
-      },
-      {
-        params: { access_token: PAGE_ACCESS_TOKEN },
-        headers: { 'Content-Type': 'application/json' }
-      }
-    );
-    console.log('Message sent successfully:', response.data);
-    return response.data;
-  } catch (error) {
-    console.error('Error sending message:', error.response?.data || error.message);
-    throw error;
-  }
-}
-
-// Helper function to get ChatGPT response
-async function getChatGPTResponse(senderId, userMessage) {
-  try {
-    // Get or initialize conversation context
-    let messages = conversationContext.get(senderId) || [{ role: 'system', content: SYSTEM_PROMPT }];
-
-    // Add user message to context
-    messages.push({ role: 'user', content: userMessage });
-
-    // Trim context to last 20 messages to avoid token bloat
-    if (messages.length > 20) {
-      messages = [messages[0], ...messages.slice(-19)];
-    }
-
-    const response = await axios.post(
-      OPENAI_API_URL,
-      {
-        model: OPENAI_MODEL,
-        messages: messages,
-        temperature: 0.7,
-        max_tokens: 150
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-
-    const assistantMessage = response.data.choices[0].message.content;
-
-    // Update conversation context
-    messages.push({ role: 'assistant', content: assistantMessage });
-    conversationContext.set(senderId, messages);
-
-    return assistantMessage;
-  } catch (error) {
-    console.error('Error getting ChatGPT response:', error.response?.data || error.message);
-    throw error;
-  }
-}
 
 // Webhook verification endpoint
 app.get('/webhook', (req, res) => {
@@ -136,11 +52,18 @@ app.post('/webhook', async (req, res) => {
         console.log(`Processing message from ${senderId}: ${message}`);
 
         try {
-          const chatGPTResponse = await getChatGPTResponse(senderId, message);
-          await sendMessage(senderId, chatGPTResponse);
+          // const chatGPTResponse = await getChatGPTResponse(senderId, message);
+          // await sendMessage(senderId, chatGPTResponse);
+          
+          // Hard coded test response
+          console.log('Test: Would have sent message to ChatGPT:', message);
+          const testResponse = "This is a test response. Your message was: " + message;
+          console.log('Test: Would have sent to user:', testResponse);
+          
         } catch (error) {
           console.error('Error processing message:', error);
-          await sendMessage(senderId, 'I apologize, but I encountered an error processing your message. Please try again later.');
+          // await sendMessage(senderId, 'I apologize, but I encountered an error processing your message. Please try again later.');
+          console.log('Test: Would have sent error message to user');
         }
       }
     }
