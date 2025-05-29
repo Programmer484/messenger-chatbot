@@ -1,6 +1,7 @@
-const express = require('express');
-const axios = require('axios');
-require('dotenv').config();
+import express, { Request, Response, NextFunction, RequestHandler } from 'express';
+import axios from 'axios';
+import settings from './appConfig/settings';
+import { handleMessage } from './bot/handlers';
 
 // Environment variable sanity checks
 ['VERIFY_TOKEN', 'PAGE_ACCESS_TOKEN', 'OPENAI_API_KEY'].forEach((key) => {
@@ -17,8 +18,25 @@ const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
+interface WebhookQuery {
+  'hub.mode'?: string;
+  'hub.verify_token'?: string;
+  'hub.challenge'?: string;
+}
+
+interface WebhookBody {
+  object: string;
+  entry: Array<{
+    messaging: Array<{
+      sender: { id: string };
+      message?: { text: string };
+      postback?: { payload: string };
+    }>;
+  }>;
+}
+
 // Webhook verification endpoint
-app.get('/webhook', (req, res) => {
+app.get('/webhook', ((req: Request<{}, {}, {}, WebhookQuery>, res: Response) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
@@ -30,10 +48,10 @@ app.get('/webhook', (req, res) => {
     console.error('Webhook verification failed');
     res.sendStatus(403);
   }
-});
+}) as RequestHandler);
 
 // Webhook message handling endpoint
-app.post('/webhook', async (req, res) => {
+app.post('/webhook', (async (req: Request<{}, WebhookBody>, res: Response) => {
   try {
     const body = req.body;
 
@@ -60,14 +78,13 @@ app.post('/webhook', async (req, res) => {
         }
       }
     }
-    
 
     res.status(200).send('EVENT_RECEIVED');
   } catch (error) {
     console.error('Webhook error:', error);
     res.sendStatus(500);
   }
-});
+}) as RequestHandler);
 
 // OpenAI API configuration
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
@@ -86,15 +103,20 @@ If you already know an answer, do not ask for it again.
 
 Screen for: Only 1 person or a couple (max 2, must be couple), no pets, non-smokers, no drugs.
 
-If user doesn’t fit, politely explain the suite is only suitable for a single person or a couple sharing a bed.
+If user doesn't fit, politely explain the suite is only suitable for a single person or a couple sharing a bed.
 
 Guide user through the screening, keep responses concise and professional.`;
 
+interface Message {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
 // Store conversation context (in production, use a proper database)
-const conversationContext = new Map();
+const conversationContext = new Map<string, Message[]>();
 
 // Helper function to send messages via Messenger API
-async function sendMessage(senderId, message) {
+async function sendMessage(senderId: string, message: string): Promise<any> {
   try {
     const response = await axios.post(
       `https://graph.facebook.com/v18.0/me/messages`,
@@ -110,13 +132,13 @@ async function sendMessage(senderId, message) {
     console.log('Message sent successfully:', response.data);
     return response.data;
   } catch (error) {
-    console.error('Error sending message:', error.response?.data || error.message);
+    console.error('Error sending message:', error instanceof Error ? error.message : 'Unknown error');
     throw error;
   }
 }
 
 // Helper function to get ChatGPT response
-async function getChatGPTResponse(senderId, userMessage) {
+async function getChatGPTResponse(senderId: string, userMessage: string): Promise<string> {
   try {
     // Get or initialize conversation context
     let messages = conversationContext.get(senderId) || [{ role: 'system', content: SYSTEM_PROMPT }];
@@ -153,16 +175,15 @@ async function getChatGPTResponse(senderId, userMessage) {
 
     return assistantMessage;
   } catch (error) {
-    console.error('Error getting ChatGPT response:', error.response?.data || error.message);
+    console.error('Error getting ChatGPT response:', error instanceof Error ? error.message : 'Unknown error');
     throw error;
   }
 }
 
 // Error handling middleware
-app.use((err, req, res, next) => {
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error('Unhandled error:', err);
   res.status(500).send('Internal Server Error');
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(settings.port, () => console.log(`Server running on port ${settings.port}`));
