@@ -2,80 +2,79 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AI_TOOLS = void 0;
 exports.executeTool = executeTool;
-const userModeration_1 = require("./userModeration");
+const userModeration_1 = require("./qualification/userModeration");
+const qualificationManager_1 = require("./qualification/qualificationManager");
+const userDataManager_1 = require("./qualification/userDataManager");
+const botConfig_1 = require("./config/botConfig");
 exports.AI_TOOLS = [
     {
-        name: 'addStrike',
-        description: 'Add a strike to a user for violating rules or asking redundant questions',
+        name: 'addStrikes',
+        description: 'Add strikes to a user for violations',
         parameters: {
             type: 'object',
             properties: {
-                userId: {
-                    type: 'string',
-                    description: 'The ID of the user to add a strike to'
-                },
-                reason: {
-                    type: 'string',
-                    description: 'The reason for adding the strike'
-                }
+                userId: { type: 'string', description: 'User ID' },
+                count: { type: 'number', description: 'Number of strikes to add' },
+                reason: { type: 'string', description: 'Reason for the strikes' }
             },
-            required: ['userId', 'reason']
-        }
-    },
-    {
-        name: 'getStrikes',
-        description: 'Get the number of strikes a user has',
-        parameters: {
-            type: 'object',
-            properties: {
-                userId: {
-                    type: 'string',
-                    description: 'The ID of the user to check'
-                }
-            },
-            required: ['userId']
-        }
-    },
-    {
-        name: 'hasExceededStrikes',
-        description: 'Check if a user has exceeded the strike limit',
-        parameters: {
-            type: 'object',
-            properties: {
-                userId: {
-                    type: 'string',
-                    description: 'The ID of the user to check'
-                }
-            },
-            required: ['userId']
+            required: ['userId', 'count', 'reason']
         }
     },
     {
         name: 'resetStrikes',
-        description: 'Reset strikes for a user',
+        description: 'Reset all strikes for a user',
         parameters: {
             type: 'object',
             properties: {
-                userId: {
-                    type: 'string',
-                    description: 'The ID of the user to reset strikes for'
-                }
+                userId: { type: 'string', description: 'User ID' }
             },
             required: ['userId']
+        }
+    },
+    {
+        name: 'markQualified',
+        description: 'Mark user as qualified for rental',
+        parameters: {
+            type: 'object',
+            properties: {
+                userId: { type: 'string', description: 'User ID' }
+            },
+            required: ['userId']
+        }
+    },
+    {
+        name: 'submitAvailability',
+        description: 'Submit user viewing availability times',
+        parameters: {
+            type: 'object',
+            properties: {
+                userId: { type: 'string', description: 'User ID' },
+                times: { type: 'array', items: { type: 'string' }, description: 'Available viewing times' }
+            },
+            required: ['userId', 'times']
+        }
+    },
+    {
+        name: 'setUserData',
+        description: 'Store collected user information',
+        parameters: {
+            type: 'object',
+            properties: {
+                userId: { type: 'string', description: 'User ID' },
+                field: { type: 'string', enum: Object.keys(botConfig_1.BOT_CONFIG.userData.validFields), description: 'Data field name' },
+                value: { type: 'string', description: 'Field value' }
+            },
+            required: ['userId', 'field', 'value']
         }
     }
 ];
 async function executeTool(toolName, params) {
     switch (toolName) {
-        case 'addStrike':
-            return (0, userModeration_1.addStrike)(params.userId, params.reason);
-        case 'getStrikes':
-            return (0, userModeration_1.getStrikes)(params.userId);
-        case 'hasExceededStrikes':
-            return (0, userModeration_1.hasExceededStrikes)(params.userId);
-        case 'resetStrikes':
-            return (0, userModeration_1.resetStrikes)(params.userId);
-        default:
-            throw new Error(`Unknown tool: ${toolName}`);
+        case 'addStrikes': return (0, userModeration_1.addStrikes)(params.userId, params.count, params.reason);
+        case 'resetStrikes': return (0, userModeration_1.resetStrikes)(params.userId);
+        case 'markQualified': return (0, qualificationManager_1.markQualified)(params.userId);
+        case 'submitAvailability': return (0, qualificationManager_1.submitAvailability)(params.userId, params.times);
+        case 'setUserData': return (0, userDataManager_1.setUserData)(params.userId, params.field, params.value);
+        default: throw new Error(`Unknown tool: ${toolName}`);
     }
 }

@@ -1,20 +1,38 @@
 import { Request, Response, RequestHandler } from 'express';
-import { WebhookQuery, WebhookBody } from '../types';
-import { sendMessage } from '../bot/messenger';
+import { sendMessage } from '../clients/messengerClient';
 import { getAiResponse } from '../bot/chatService';
+import { logger } from '../utils/logger';
+import { APP_CONFIG } from '../appConfig';
 
-const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
+// Webhook types - used only in this file
+interface WebhookQuery {
+  'hub.mode'?: string;
+  'hub.verify_token'?: string;
+  'hub.challenge'?: string;
+}
+
+interface WebhookBody {
+  object: string;
+  entry: Array<{
+    messaging: Array<{
+      sender: { id: string };
+      message?: { text: string };
+      postback?: { payload: string };
+    }>;
+  }>;
+}
+
 
 export const verifyWebhook: RequestHandler = (req: Request<{}, {}, {}, WebhookQuery>, res: Response) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
 
-  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-    console.log('Webhook verified');
+  if (mode === 'subscribe' && token === APP_CONFIG.credentials.verifyToken) {
+    logger.info('Webhook verified successfully', 'GENERAL');
     res.status(200).send(challenge);
   } else {
-    console.error('Webhook verification failed');
+    logger.error('Webhook verification failed - invalid token or mode', 'GENERAL');
     res.sendStatus(403);
   }
 };
@@ -24,6 +42,7 @@ export const handleWebhook: RequestHandler = async (req: Request<{}, WebhookBody
     const body = req.body;
 
     if (body.object !== 'page') {
+      logger.warn('Received webhook for non-page object', 'GENERAL');
       res.sendStatus(404);
       return;
     }
@@ -31,26 +50,29 @@ export const handleWebhook: RequestHandler = async (req: Request<{}, WebhookBody
     // Iterate through all entries and messaging events
     for (const entry of body.entry) {
       for (const evt of entry.messaging) {
-        console.log('Event:', JSON.stringify(evt)); // Log all events
+        logger.debug(`Received event: ${JSON.stringify(evt)}`, 'GENERAL');
     
         const senderId = evt.sender.id;
     
         if (evt.message && evt.message.text) {
-          // Handle user text messages
-          const chatGPTResponse = await getAiResponse(senderId, evt.message.text);
-          await sendMessage(senderId, chatGPTResponse);
+          // Handle user text messages with AI
+          logger.debug(`Processing text message from ${senderId}: ${evt.message.text}`, 'GENERAL');
+          const AiResponse = await getAiResponse(senderId, evt.message.text);
+          await sendMessage(senderId, AiResponse);
         } else if (evt.postback) {
-          // Handle button postbacks
-          await sendMessage(senderId, `Received your selection: ${evt.postback.payload}`);
+          // Handle button postbacks - treat payload as user input
+          logger.debug(`Processing postback from ${senderId}: ${evt.postback.payload}`, 'GENERAL');
+          const AiResponse = await getAiResponse(senderId, evt.postback.payload);
+          await sendMessage(senderId, AiResponse);
         } else {
-          console.log('Unhandled event type:', evt);
+          logger.debug(`Unhandled event type from ${senderId}: ${Object.keys(evt).join(', ')}`, 'GENERAL');
         }
       }
     }
 
     res.status(200).send('EVENT_RECEIVED');
   } catch (error) {
-    console.error('Webhook error:', error);
+    logger.error(`Webhook processing error: ${error instanceof Error ? error.message : 'Unknown error'}`, 'GENERAL');
     res.sendStatus(500);
   }
 }; 

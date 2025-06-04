@@ -163,7 +163,6 @@ src/
    Required variables:
    - `OPENAI_API_KEY`: Your OpenAI API key
    - `PAGE_ACCESS_TOKEN`: Your Facebook Page access token
-   - `OPENAI_MODEL`: The OpenAI model to use (default: gpt-4)
 
 3. Start the development server:
    ```bash

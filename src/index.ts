@@ -1,5 +1,7 @@
-import settings from './appConfig/settings';
-import { createServer } from './server';
+import { APP_CONFIG } from './appConfig';
 
-const app = createServer();
-app.listen(settings.port, () => console.log(`Server running on port ${settings.port}`));
+console.log('Starting messenger chatbot...');
+console.log(`Port: ${APP_CONFIG.server.port}`);
+console.log(`Environment: ${APP_CONFIG.server.environment}`);
+
+import('./server');

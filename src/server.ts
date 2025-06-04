@@ -1,6 +1,6 @@
-import express, { Request, Response, NextFunction } from 'express';
-import settings from './appConfig/settings';
+import express from 'express';
 import { verifyWebhook, handleWebhook } from './routes/webhookHandler';
+import { APP_CONFIG } from './appConfig';
 
 // Environment variable sanity checks
 ['VERIFY_TOKEN', 'PAGE_ACCESS_TOKEN', 'OPENAI_API_KEY'].forEach((key) => {
@@ -9,19 +9,25 @@ import { verifyWebhook, handleWebhook } from './routes/webhookHandler';
   }
 });
 
-export function createServer() {
-  const app = express();
-  app.use(express.json());
+const app = express();
+app.use(express.json());
 
-  // Webhook endpoints
-  app.get('/webhook', verifyWebhook);
-  app.post('/webhook', handleWebhook);
+// Webhook routes
+app.get('/webhook', verifyWebhook);
+app.post('/webhook', handleWebhook);
 
-  // Error handling middleware
-  app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-    console.error('Unhandled error:', err);
-    res.status(500).send('Internal Server Error');
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'healthy',
+    environment: APP_CONFIG.server.environment,
+    timestamp: new Date().toISOString()
   });
+});
 
-  return app;
-} 
+const PORT = APP_CONFIG.server.port;
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Environment: ${APP_CONFIG.server.environment}`);
+}); 
