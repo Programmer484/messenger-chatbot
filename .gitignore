@@ -1,8 +1,5 @@
 # Environment variables
 .env
 
-# Compiled TypeScript output
-dist/
-
 # Node modules
 node_modules/
