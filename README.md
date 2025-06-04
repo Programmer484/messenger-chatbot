@@ -176,6 +176,45 @@ src/
 - `npm run start`: Start production server
 - `npm run test`: Run tests
 
+## Deployment
+
+This project uses TypeScript and compiles to JavaScript for production deployment.
+
+### Local Testing
+```bash
+# Build TypeScript files
+npm run build
+
+# Test the compiled application
+npm start
+```
+
+### Render.com Deployment
+
+The project is configured for deployment on Render.com with automatic builds:
+
+**Build Process:**
+1. `npm install` - Install dependencies
+2. `npm run build` - Compile TypeScript to JavaScript in `dist/` directory
+3. `npm start` - Start the compiled application
+
+**Configuration (render.yaml):**
+```yaml
+buildCommand: npm install && npm run build
+startCommand: npm start
+```
+
+**Environment Variables (set in Render dashboard):**
+- `VERIFY_TOKEN`: Facebook webhook verification token
+- `PAGE_ACCESS_TOKEN`: Facebook Page access token  
+- `OPENAI_API_KEY`: OpenAI API key
+
+**Important Notes:**
+- The `dist/` directory is excluded from git and generated during build
+- All environment variables must be configured in the Render dashboard
+- The application uses npm scripts which handle the compiled JavaScript files
+- Use `npm start` (not direct node commands) to ensure proper script execution
+
 ## License
 
 MIT 
