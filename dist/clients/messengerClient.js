@@ -6,7 +6,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendMessage = sendMessage;
 const axios_1 = __importDefault(require("axios"));
 const appConfig_1 = require("../appConfig");
-const PAGE_ACCESS_TOKEN = appConfig_1.APP_CONFIG.credentials.pageAccessToken;
 /**
  * Sends a message to a user via the Facebook Messenger API
  * @param recipientId - The ID of the message recipient
@@ -18,7 +17,7 @@ async function sendMessage(recipientId, messageText) {
             recipient: { id: recipientId },
             message: { text: messageText }
         }, {
-            params: { access_token: PAGE_ACCESS_TOKEN }
+            params: { access_token: appConfig_1.APP_CONFIG.credentials.pageAccessToken }
         });
         if (response.status !== 200) {
             throw new Error(`Failed to send message: ${response.statusText}`);

@@ -3,8 +3,8 @@ services:
     name: messenger-bot
     env: node
     plan: free
-    buildCommand: npm run build
-    startCommand: npm start   # or whatever your entry file is
+    buildCommand: npm install && npm run build
+    startCommand: node dist/index.js
     envVars:
       - key: VERIFY_TOKEN
         sync: false

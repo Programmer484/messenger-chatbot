@@ -5,12 +5,11 @@ const messengerClient_1 = require("../clients/messengerClient");
 const chatService_1 = require("../bot/chatService");
 const logger_1 = require("../utils/logger");
 const appConfig_1 = require("../appConfig");
-const VERIFY_TOKEN = appConfig_1.APP_CONFIG.credentials.verifyToken;
 const verifyWebhook = (req, res) => {
     const mode = req.query['hub.mode'];
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
-    if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+    if (mode === 'subscribe' && token === appConfig_1.APP_CONFIG.credentials.verifyToken) {
         logger_1.logger.info('Webhook verified successfully', 'GENERAL');
         res.status(200).send(challenge);
     }
