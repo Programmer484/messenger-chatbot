@@ -1,5 +1,7 @@
 - Create a simple way for the landlord to iterate on the prompt and test.
-
+- Limit on # messages a user can have with AI and warn when reaching limit.
+- Make it less susceptible to prompt engineering.
 
 How to test:
 npx ts-node src/test/aiTest.ts
+
