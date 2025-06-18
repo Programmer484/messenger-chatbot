@@ -53,15 +53,32 @@ export const AI_TOOLS = [
   },
   {
     name: 'setUserData',
-    description: 'Store collected user information',
+    description: 'Store user information - can set multiple fields at once',
     parameters: {
       type: 'object',
       properties: {
         userId: { type: 'string', description: 'User ID' },
-        field: { type: 'string', enum: Object.keys(BOT_CONFIG.userData.validFields), description: 'Data field name' },
-        value: { type: 'string', description: 'Field value' }
+        data: { 
+          type: 'object', 
+          description: `Object containing field-value pairs to set. Valid fields: ${Object.keys(BOT_CONFIG.userData.validFields).join(', ')}`,
+          properties: Object.fromEntries(
+            Object.entries(BOT_CONFIG.userData.validFields).map(([key, fieldConfig]) => [
+              key, { 
+                type: 'string', 
+                description: `${fieldConfig.description}${
+                  fieldConfig.validation.type === 'enum' 
+                    ? `. Allowed values: ${fieldConfig.validation.values.join(', ')}` 
+                    : fieldConfig.validation.type === 'date' && fieldConfig.validation.format
+                    ? `. Required format: ${fieldConfig.validation.format}`
+                    : ''
+                }`
+              }
+            ])
+          ),
+          additionalProperties: false
+        }
       },
-      required: ['userId', 'field', 'value']
+      required: ['userId', 'data']
     }
   }
 ];
@@ -72,7 +89,7 @@ export async function executeTool(toolName: string, params: any): Promise<any> {
     case 'resetStrikes': return resetStrikes(params.userId);
     case 'markQualified': return markQualified(params.userId);
     case 'submitAvailability': return submitAvailability(params.userId, params.times);
-    case 'setUserData': return setUserData(params.userId, params.field, params.value);
+    case 'setUserData': return setUserData(params.userId, params.data);
     default: throw new Error(`Unknown tool: ${toolName}`);
   }
-} 
+}

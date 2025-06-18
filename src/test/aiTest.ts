@@ -40,18 +40,31 @@ async function manualTest() {
           continue;
         }
 
+        console.log('🔄 Processing request...');
         const currentStrikes = getStrikes(userId);
-        const response = await getAiResponse(userId, userInput);
-        const newStrikes = getStrikes(userId);
         
-        console.log(`AI: ${response}`);
-        console.log(`Strikes: ${currentStrikes} → ${newStrikes}\n`);
+        try {
+          const response = await getAiResponse(userId, userInput);
+          const newStrikes = getStrikes(userId);
+          
+          console.log(`AI: ${response}`);
+        } catch (aiError) {
+          console.error(`❌ AI Error:`, aiError instanceof Error ? aiError.message : 'Unknown error');
+          if (aiError instanceof AxiosError) {
+            console.error(`Status: ${aiError.response?.status}`);
+            console.error(`Data:`, aiError.response?.data);
+            
+            // More specific error handling for tool call issues
+            if (aiError.response?.data?.error?.message?.includes('tool_calls')) {
+              console.error('\n🔧 This looks like a tool call handling issue.');
+              console.error('The AI made a tool call but the response wasn\'t formatted correctly.');
+            }
+          }
+          console.log();
+        }
         
       } catch (error) {
-        console.error(`❌ Error:`, error instanceof Error ? error.message : 'Unknown error');
-        if (error instanceof AxiosError) {
-          console.error(`Status: ${error.response?.status}, Data:`, error.response?.data);
-        }
+        console.error(`❌ General Error:`, error instanceof Error ? error.message : 'Unknown error');
         console.log();
       }
     }

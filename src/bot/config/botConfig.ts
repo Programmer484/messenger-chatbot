@@ -4,18 +4,48 @@
 export const BOT_CONFIG = {
   // User data field definitions
   userData: {
-    // Valid field names - these should match what's defined in the system prompt
+    // Valid field names with descriptions and validation rules
     validFields: {
-      'move_in_date': 'Move-in date',
-      'current_renting_status': 'Current renting status',
-      'number_of_people': 'Number of people',
-      'relationship': 'Relationship between occupants',
-      'job_title_primary': 'Job title (primary applicant)',
-      'job_title_secondary': 'Job title (secondary applicant)',
-      'name': 'Applicant name',
-      'pets': 'Pet status',
-      'smoking': 'Smoking status',
-      'drugs': 'Drug use status'
+      'move_in_date': {
+        description: 'Move-in date - MUST be in exact DD/MM/YYYY format with leading zeros (e.g., 15/07/2025, 03/12/2024)',
+        validation: { type: 'date', format: 'DD/MM/YYYY' }
+      },
+      'current_renting_status': {
+        description: 'Current renting status',
+        validation: { type: 'enum', values: ['renting', 'not renting'] }
+      },
+      'number_of_people': {
+        description: 'Number of people',
+        validation: { type: 'enum', values: ['1', '2', '3+'] }
+      },
+      'relationship': {
+        description: 'Relationship between occupants',
+        validation: { type: 'enum', values: ['couple', 'not couple'] }
+      },
+      'job_title_primary': {
+        description: 'Job title (primary applicant)',
+        validation: { type: 'text', minLength: 2 }
+      },
+      'job_title_secondary': {
+        description: 'Job title (secondary applicant)',
+        validation: { type: 'text', minLength: 2 }
+      },
+      'name': {
+        description: 'Applicant name',
+        validation: { type: 'text', minLength: 2 }
+      },
+      'pets': {
+        description: 'Pet status',
+        validation: { type: 'enum', values: ['yes', 'no'] }
+      },
+      'smoking': {
+        description: 'Smoking status',
+        validation: { type: 'enum', values: ['yes', 'no'] }
+      },
+      'drugs': {
+        description: 'Drug use status',
+        validation: { type: 'enum', values: ['yes', 'no'] }
+      }
     } as const,
     
     // Required fields that must be collected for eligibility
@@ -63,4 +93,15 @@ export const BOT_CONFIG = {
 };
 
 // Export types for use elsewhere
-export type UserDataField = keyof typeof BOT_CONFIG.userData.validFields; 
+export type UserDataField = keyof typeof BOT_CONFIG.userData.validFields;
+export type FieldValidation = {
+  type: 'enum';
+  values: readonly string[];
+} | {
+  type: 'text';
+  minLength?: number;
+  maxLength?: number;
+} | {
+  type: 'date';
+  format?: 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD';
+}; 

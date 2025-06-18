@@ -1,1 +1,5 @@
 - Create a simple way for the landlord to iterate on the prompt and test.
+
+
+How to test:
+npx ts-node src/test/aiTest.ts

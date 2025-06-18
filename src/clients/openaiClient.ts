@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { APP_CONFIG } from '../appConfig';
+import { BOT_CONFIG } from '../bot/config/botConfig';
 
 // Types used for OpenAI chat completions
 interface Message {
@@ -34,7 +35,7 @@ export async function chatCompletion(messages: Message[], tools?: AITool[]): Pro
     const response = await axios.post(
       OPENAI_API_URL,
       {
-        model: 'gpt-4o',
+        model: BOT_CONFIG.openai.model,
         messages,
         tools: tools?.map(tool => ({
           type: 'function',
@@ -44,8 +45,8 @@ export async function chatCompletion(messages: Message[], tools?: AITool[]): Pro
             parameters: tool.parameters
           }
         })),
-        temperature: 0.7,
-        max_tokens: 150
+        temperature: BOT_CONFIG.chat.temperature,
+        max_tokens: BOT_CONFIG.chat.maxTokens
       },
       {
         headers: {
