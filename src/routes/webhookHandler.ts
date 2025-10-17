@@ -40,6 +40,11 @@ export const verifyWebhook: RequestHandler = (req: Request<{}, {}, {}, WebhookQu
 export const handleWebhook: RequestHandler = async (req: Request<{}, WebhookBody>, res: Response) => {
   try {
     const body = req.body;
+    
+    // DEBUG: Log ALL incoming webhook requests
+    console.log('========== WEBHOOK RECEIVED ==========');
+    console.log('Body:', JSON.stringify(body, null, 2));
+    console.log('======================================');
 
     if (body.object !== 'page') {
       logger.warn('Received webhook for non-page object', 'GENERAL');
